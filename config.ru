@@ -2,5 +2,7 @@
 $: << './server'
 
 require 'main'
-run Sinatra::Application
+require 'rack/wwwhisper'
 
+use Rack::WWWhisper
+run Sinatra::Application

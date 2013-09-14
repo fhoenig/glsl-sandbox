@@ -149,9 +149,10 @@ void main( void ) {
 			// Greetings to Iq/RGBA! ;)
 
 			var quality = 2, quality_levels = [ 0.5, 1, 2, 4, 8 ];
+			var formats = {"RGBA_32F":5126, "RGBA8":5121};
 			var toolbar, compileButton, fullscreenButton, compileTimer, errorLines = [];
 			var code, canvas, gl, buffer, currentProgram, vertexPosition,
-			parameters = { startTime: Date.now(), time: 0, mouseX: 0.5, mouseY: 0.5, screenWidth: 0, screenHeight: 0 },
+			parameters = { startTime: Date.now(), time: 0, mouseX: 0.5, mouseY: 0.5, screenWidth: 0, screenHeight: 0, textureFormat: 5121},
 			frontTarget, backTarget, screenProgram, getWebGL, resizer = {}, compileOnChangeCode = true;
 
 			init();
@@ -251,6 +252,29 @@ void main( void ) {
 				}, false );
 
 				toolbar.appendChild( select );
+
+				// adding texture format drop-down
+				var selectFormat = document.createElement( 'select' );
+
+				for ( var q in formats ) {
+
+					var option = document.createElement( 'option' );
+					option.value = formats[q];
+					option.textContent = q;
+					if ( formats[q] == parameters.textureFormat ) option.selected = true;
+					selectFormat.appendChild( option );
+
+				}
+
+				selectFormat.addEventListener( 'change', function ( event ) {
+
+					parameters.textureFormat = parseInt(event.target.value);
+					onWindowResize();
+
+				}, false );
+
+				toolbar.appendChild( selectFormat );
+				// ---------------------------------
 
 				compileButton = document.createElement( 'button' );
 				compileButton.textContent = 'compile';
@@ -505,9 +529,10 @@ void main( void ) {
 				target.texture = gl.createTexture();
 
 				// set up framebuffer
-
+				gl.getExtension("OES_texture_float");
 				gl.bindTexture( gl.TEXTURE_2D, target.texture );
-				gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null );
+
+				gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, parameters.textureFormat, null);
 
 				gl.texParameteri( gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE );
 				gl.texParameteri( gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE );

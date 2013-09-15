@@ -239,10 +239,10 @@ void main()
 				button.textContent = 'hide code';
 				button.addEventListener( 'click', function ( event ) {
 
-					if ( code.getWrapperElement().style.visibility === 'visible' ) {
+					if ($('#editorContainer').is(':visible')) {
 
 						button.textContent = 'show code';
-						code.getWrapperElement().style.visibility = 'hidden';
+						$('#editorContainer').hide();
 						compileButton.style.visibility = 'hidden';
 						set_save_button('hidden');
 						set_parent_button('hidden');
@@ -250,7 +250,7 @@ void main()
 					} else {
 
 						button.textContent = 'hide code';
-						code.getWrapperElement().style.visibility = 'visible';
+						$('#editorContainer').show();
 						compileButton.style.visibility = 'visible';
 						set_save_button('visible');
 						set_parent_button('visible');
@@ -359,7 +359,7 @@ void main()
                     }
 					
 				});
-				code.getWrapperElement().style.visibility = 'visible';
+				$('#editorContainer').show();
 				code.on("change", function(cm, change) {
                     if (compileOnChangeCode) {
 						clearTimeout(compileTimer);

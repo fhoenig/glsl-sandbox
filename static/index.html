@@ -48,6 +48,34 @@
 				background-color: #000000;
 
 			}
+			
+            #editorContainer {
+              color: white;
+              text-shadow: rgba( 0, 0, 0, 1 ) 0px 1px 2px;
+              background-color: transparent;
+              position: absolute; left: 25px; top: 75px; right:25px; bottom: 25px;
+              padding: 0;
+              border: solid 1px transparent;
+              border-radius: 5px;
+              line-height: 1.1em;
+              font-family: monospace;
+              font-size: 14px;
+
+              visibility: visible;
+              overflow:auto;
+
+              /* transition between transparent and semi-transparent black on hover */
+              transition: background-color 500ms;
+              -webkit-transition: background-color 500ms;
+              -o-transition: background-color 500ms;
+              -moz-transition: background-color 500ms;
+              -ms-transition: background-color 500ms;
+            }
+
+            #editorContainer:hover {
+              background-color:rgba(0,0,0,.5);
+              border: solid 1px rgba(128,128,128,.4);
+            }
 
 		</style>
 	</head>
@@ -63,25 +91,24 @@
 		<script src="js/glsl.js"></script>
 
 		<script id="example" type="x-shader/x-fragment">#ifdef GL_ES
-precision mediump float;
+precision highp float;
 #endif
 
 uniform float time;
 uniform vec2 mouse;
 uniform vec2 resolution;
+uniform sampler2D bb;
 
-void main( void ) {
+void main() 
+{
+    // coordinate system with origin in the center and y-axis goes up
+    // y-range is [-1.0, 1.0] and x-range is based on aspect ratio.
+    vec2 p = (-resolution.xy + 2.0 * gl_FragCoord.xy) / resolution.y;
+    vec2 m = (mouse * 2.0 - 1.0) * vec2(resolution.x / resolution.y, 1.0);
 
-	vec2 position = ( gl_FragCoord.xy / resolution.xy ) + mouse / 4.0;
+    // MAGIC GOES HERE...
 
-	float color = 0.0;
-	color += sin( position.x * cos( time / 15.0 ) * 80.0 ) + cos( position.y * cos( time / 15.0 ) * 10.0 );
-	color += sin( position.y * sin( time / 10.0 ) * 40.0 ) + cos( position.x * sin( time / 25.0 ) * 40.0 );
-	color += sin( position.x * sin( time / 5.0 ) * 10.0 ) + sin( position.y * sin( time / 35.0 ) * 80.0 );
-	color *= sin( time / 10.0 ) * 0.5;
-
-	gl_FragColor = vec4( vec3( color, color * 0.5, sin( color + time / 3.0 ) * 0.75 ), 1.0 );
-
+    gl_FragColor = vec4(0.0);
 }</script>
 
 		<script id="fragmentShader" type="x-shader/x-fragment">
@@ -317,64 +344,28 @@ void main( void ) {
 					
 				}
 
+                var editorContainer = $('<div>').attr("id", "editorContainer").appendTo($('body'));
+
 				// initialize code editor
-				code = CodeMirror(document.body, {
+				code = CodeMirror(editorContainer.get(0), {
 					lineNumbers: true,
 					matchBrackets: true,
-					indentWithTabs: true,
-					tabSize: 8,
-					indentUnit: 8,
+					indentUnit: 4,
+					viewportMargin: Infinity,
+					gutters: ["CodeMirror-linenumbers"],
 					mode: "text/x-glsl",
-					onChange: function () {
-						if (compileOnChangeCode) {
-							clearTimeout(compileTimer);
-							compileTimer = setTimeout(compile, 500);
-						}
-					}
+					extraKeys: {
+                        Tab: function(cm) { cm.replaceSelection("    ", "end"); } 
+                    }
+					
 				});
 				code.getWrapperElement().style.visibility = 'visible';
-
-				resizer.offsetMouseX = 0;
-				resizer.offsetMouseY = 0;
-				resizer.isResizing = false;
-				resizer.currentWidth = 100;
-				resizer.currentHeight = 100;
-				resizer.minWidth = 100;
-				resizer.minHeight = 100;
-				resizer.maxWidth = 100;
-				resizer.maxHeight = 100;
-				resizer.element = document.createElement( 'div' );
-				resizer.element.className = 'resizer';
-				code.getWrapperElement().appendChild(resizer.element);
-
-				resizer.element.addEventListener( 'mousedown', function ( event ) {
-					if (event.button !== 2) {
-						resizer.offsetMouseX = event.clientX - resizer.currentWidth;
-						resizer.offsetMouseY = event.clientY - resizer.currentHeight;
-						resizer.isResizing = true;
-						event.preventDefault();
+				code.on("change", function(cm, change) {
+                    if (compileOnChangeCode) {
+						clearTimeout(compileTimer);
+						compileTimer = setTimeout(compile, 500);
 					}
-				}, false );
-				
-				document.addEventListener( 'mousemove', function ( event ) {
-					var codeElement;
-					if (resizer.isResizing) {
-						resizer.currentWidth = Math.max(Math.min(event.clientX - resizer.offsetMouseX, resizer.maxWidth), resizer.minWidth);
-						resizer.currentHeight = Math.max(Math.min(event.clientY - resizer.offsetMouseY, resizer.maxHeight), resizer.minWidth);
-						codeElement = code.getWrapperElement();
-						codeElement.style.width = resizer.currentWidth + 'px';
-						codeElement.style.height = resizer.currentHeight + 'px';
-						code.refresh();
-					}
-				}, false );
-
-				document.addEventListener( 'mouseup', function ( event ) {
-					resizer.isResizing = false;
-				}, false );
-				
-				document.addEventListener( 'mouseleave', function ( event ) {
-					resizer.isResizing = false;
-				}, false );
+                });
 
 				onWindowResize();
 				window.addEventListener( 'resize', onWindowResize, false );
@@ -594,8 +585,8 @@ void main( void ) {
 
 				while (errorLines.length > 0) {
 					line = errorLines.pop();
-					code.setLineClass(line, null);
-					code.clearMarker(line);
+					code.removeLineClass(line, 'background');
+					code.clearGutter(line);
 				}
 
 				gl.shaderSource( shader, src );
@@ -613,7 +604,7 @@ void main( void ) {
 					}
 
 					compileButton.title = error;
-					console.error( error );
+					console.warn( error );
 
 					compileButton.style.color = '#ff0000';
 					compileButton.textContent = 'compiled with errors';
@@ -630,8 +621,10 @@ void main( void ) {
 							index = indexEnd + 1;
 							indexEnd = error.indexOf("ERROR: 0:", index);
 							lineError = htmlEncode((indexEnd > index) ? error.substring(index, indexEnd) : error.substring(index));
-							line = code.setMarker(lineNum - 1, '<abbr title="' + lineError + '">' + lineNum + '</abbr>', "errorMarker");
-							code.setLineClass(line, "errorLine");
+							line = code.setGutterMarker(lineNum - 1, "note-gutter", $('<span title="' + lineError + '">' + lineNum + '</span>').get(0));
+							var ldiv = code.addLineClass(line, "background", "errorLine errorLine-"+index);
+                            $(".errorLine-"+index).html(lineError.length > 100 ? lineError.substr(0, 100) + "..." : lineError);
+                            
 							errorLines.push(line);
 						}
 					}
@@ -664,11 +657,6 @@ void main( void ) {
 				}
 				if (resizer.currentWidth < resizer.minWidth) { resizer.currentWidth = resizer.minWidth; }
 				if (resizer.currentHeight < resizer.minHeight) { resizer.currentHeight = resizer.minHeight; }
-
-				code.getWrapperElement().style.top = '75px';
-				code.getWrapperElement().style.left = '25px';
-				code.getWrapperElement().style.width = resizer.currentWidth + 'px';
-				code.getWrapperElement().style.height = resizer.currentHeight + 'px';
 
 				canvas.width = window.innerWidth / quality;
 				canvas.height = window.innerHeight / quality;

@@ -12,6 +12,8 @@ require 'model'
 require 'pp'
 
 configure do
+    Rack::Utils.key_space_limit = 262144
+
     set :public_folder, 'server/assets'
 
     GALLERY=ERB.new(File.read('server/assets/gallery.html'))

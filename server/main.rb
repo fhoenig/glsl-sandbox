@@ -53,6 +53,10 @@ post '/e' do
     $glsl.save_effect(body)
 end
 
+get '/limits' do
+    "Limits: #{Rack::Utils.key_space_limit}!"
+end
+
 
 # redirects
 

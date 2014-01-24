@@ -196,6 +196,15 @@ void main()
 				document.body.appendChild( effect );
 
 				canvas = document.createElement( 'canvas' );
+
+				captureCanvas = document.createElement( 'canvas' );
+				captureCanvas.width = 200;
+				captureCanvas.style.width = '200px';
+				captureCanvas.height = 100;
+				captureCanvas.style.height = '100px';
+				captureCanvas.style.display = "none";
+				captureContext = captureCanvas.getContext("2d");
+
 				effect.appendChild( canvas );
 
 				//

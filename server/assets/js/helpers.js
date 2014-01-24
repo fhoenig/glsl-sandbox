@@ -77,26 +77,15 @@ function set_parent_button(visibility) {
 }
 
 
-function get_img( width, height ) {
-	canvas.width = width;
-	canvas.height = height;
-	parameters.screenWidth = width;
-	parameters.screenHeight = height;
-
-	gl.viewport( 0, 0, width, height );
-	createRenderTargets();
-
-	render();
-
-	img=canvas.toDataURL('image/png');
-
-	onWindowResize();
-
-	return img;
+function get_img() {
+	var image = new Image;
+	image.src = canvas.toDataURL('image/png');
+	captureContext.drawImage(image, 0, 0, captureCanvas.width, captureCanvas.height);
+	return captureCanvas.toDataURL('image/png');
 }
 
 function save() {
-	img=get_img(200, 100);
+	var img=get_img();
 
 	data={
 		"code": code.getValue(),

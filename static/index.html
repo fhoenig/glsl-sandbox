@@ -735,7 +735,9 @@ void main()
 				gl.bindFramebuffer( gl.FRAMEBUFFER, null );
 
 				gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT );
+				gl.colorMask(true, true, true, false);
 				gl.drawArrays( gl.TRIANGLES, 0, 6 );
+				gl.colorMask(true, true, true, true);
 
 				// Swap buffers
 

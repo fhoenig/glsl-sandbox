@@ -77,36 +77,37 @@ function set_parent_button(visibility) {
 }
 
 
-function get_img() {
+function get_img_then(callback) {
 	var image = new Image;
+
+	image.onload = function() {
+		captureContext.drawImage(image, 0, 0, captureCanvas.width, captureCanvas.height);
+		callback(captureCanvas.toDataURL('image/png'));
+	}
+
 	image.src = canvas.toDataURL('image/png');
-	captureContext.drawImage(image, 0, 0, captureCanvas.width, captureCanvas.height);
-	return captureCanvas.toDataURL('image/png');
 }
 
 function save() {
-	var img=get_img();
-
-	data={
-		"code": code.getValue(),
-		"image": img,
-		"user": get_user_id()
+	var data = {
+		code: code.getValue(),
+		user: get_user_id()
 	}
-
-	loc='/e';
 
 	if(am_i_owner())
-		data["code_id"]=window.location.hash.substr(1);
+		data.code_id = window.location.hash.substr(1);
 	else {
-		data["parent"]=window.location.hash.substr(1);
+		data.parent = window.location.hash.substr(1);
 	}
 
-	$.post(loc,
-		JSON.stringify(data),
-		function(result) {
-			window.location.replace('/e#'+result);
+	get_img_then(function(imgUrl) {
+		data.image = imgUrl;
+
+		$.post('/e', JSON.stringify(data), function(result) {
+			window.location.replace('/e#' + result);
 			load_url_code();
-		}, "text");
+		}, 'text');
+	});
 }
 
 function load_code(hash) {

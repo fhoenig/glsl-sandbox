@@ -34,12 +34,11 @@
 				text-decoration: none;
 
 			}
-
+            
 			button:hover, select:hover, a:hover {
 
 				opacity: 1;
 				box-shadow: 0 0 4px #FFF;
-
 			}
 
 			option {
@@ -98,6 +97,8 @@ uniform float time;
 uniform vec2 mouse;
 uniform vec2 resolution;
 uniform sampler2D bb;
+
+uniform vec3 sensorData[48];
 
 void main() 
 {
@@ -177,16 +178,50 @@ void main()
 
 			var quality = 2, quality_levels = [ 0.5, 1, 2, 4, 8 ];
 			var formats = {"RGBA_32F":5126, "RGBA8":5121};
-			var toolbar, compileButton, fullscreenButton, compileTimer, errorLines = [];
+			var toolbar, compileButton, fullscreenButton, mocapButton, mocapProgress, mocapSelect, compileTimer, errorLines = [];
 			var code, canvas, gl, buffer, currentProgram, vertexPosition,
 			parameters = { startTime: Date.now(), time: 0, mouseX: 0.5, mouseY: 0.5, screenWidth: 0, screenHeight: 0, textureFormat: 5121},
 			frontTarget, backTarget, screenProgram, getWebGL, resizer = {}, compileOnChangeCode = true;
+
+            // motion capture data
+            var mocapRecordings = {
+                "capture-20140415-01.mocap" : "Mocap Recording 01",
+                "capture-20140415-02.mocap" : "Mocap Recording 02",
+                "capture-20140415-04.mocap" : "Mocap Recording 03",
+                "capture-20140415-05.mocap" : "Mocap Recording 04"
+                                                                
+            };
+            var mocapIsPaused = false;
+            var mocapIsLoading = false;
+            var mocapNumFrames = 0;
+            var mocapNumSensors = 0;
+            var mocapCurFrame = -1;
+            var mocapFramesRaw = null;
+            var mocapFrames = null;
+            var mocapDataRequest = new XMLHttpRequest();
+            mocapDataRequest.responseType = "arraybuffer";
+            mocapDataRequest.onload = function (oEvent) 
+            {
+                var rawBytes = mocapDataRequest.response; 
+                // extract data
+                var intView = new Int32Array(rawBytes);
+                mocapNumFrames = intView[0];
+                mocapNumSensors = intView[1];
+                mocapFramesRaw = rawBytes.slice(8);
+                mocapFrames = new Float32Array(mocapFramesRaw);
+                mocapCurFrame = 0;
+                mocapIsLoading = false;
+                mocapProgress.max = mocapNumFrames;
+                mocapButton.textContent = "Pause";
+                mocapIsPaused = false;
+                // console.log("Loaded " + mocapNumFrames + " frames of " + mocapNumSensors + " sensors");
+            }
 
 			init();
 			if (gl) { animate(); }
 
 			function init() {
-
+                
 				if (!document.addEventListener) {
 					document.location = 'http://get.webgl.org/';
 					return;
@@ -197,11 +232,6 @@ void main()
 
 				canvas = document.createElement( 'canvas' );
 				effect.appendChild( canvas );
-
-				//
-
-
-				//
 
 				toolbar = document.createElement( 'div' );
 				toolbar.style.position = 'absolute';
@@ -227,7 +257,7 @@ void main()
 					}
 
 				}, false );
-
+                
 				rightside.appendChild( fullscreenButton );
 
 				var button = document.createElement( 'a' );
@@ -244,6 +274,9 @@ void main()
 						button.textContent = 'show code';
 						$('#editorContainer').hide();
 						compileButton.style.visibility = 'hidden';
+						mocapSelect.style.visibility = 'hidden';
+						mocapProgress.style.visibility = 'hidden';
+                        mocapButton.style.visibility = 'hidden';
 						set_save_button('hidden');
 						set_parent_button('hidden');
 
@@ -252,6 +285,10 @@ void main()
 						button.textContent = 'hide code';
 						$('#editorContainer').show();
 						compileButton.style.visibility = 'visible';
+                        mocapButton.style.visibility = 'visible';
+						mocapSelect.style.visibility = 'visible';
+						mocapProgress.style.visibility = 'visible';
+                        
 						set_save_button('visible');
 						set_parent_button('visible');
 
@@ -311,7 +348,49 @@ void main()
 
 				}, false );
 				toolbar.appendChild( compileButton );
+                
+                
+                // mocap UI
+				mocapSelect = document.createElement( 'select' );
+                var i = 0;
+				for ( var q in mocapRecordings ) {
+					var option = document.createElement( 'option' );
+					option.value = q;
+					option.textContent = mocapRecordings[q];
+					if ( i++ == 0 ) option.selected = true;
+					mocapSelect.appendChild( option );
+				}
 
+				mocapSelect.addEventListener( 'change', function ( event ) {
+
+                    // load recording
+                    loadMocapFile(event.target.value);
+                    
+				}, false );
+
+				toolbar.appendChild( mocapSelect );
+                
+                mocapProgress = document.createElement('progress');
+                mocapProgress.value = 0;
+                mocapProgress.max = 0;
+				toolbar.appendChild( mocapProgress );
+                
+                mocapButton = document.createElement('button');
+				mocapButton.textContent = 'loading mocap...';
+				mocapButton.addEventListener( 'click', function ( event ) {
+                    if (mocapButton.textContent == "Pause")
+                    {
+                        mocapButton.textContent = "Play";
+                        mocapIsPaused = true;
+                    }
+                    else if (mocapButton.textContent == "Play")
+                    {
+                        mocapButton.textContent = "Pause";                        
+                        mocapIsPaused = false;
+                    }
+                });
+				toolbar.appendChild( mocapButton );
+                                
 				// from helper.js
 				add_server_buttons();
 
@@ -372,8 +451,23 @@ void main()
 				load_url_code();
 
 				compileScreenProgram();
+                loadMocapFile(Object.keys(mocapRecordings)[0]);
 
 			}
+            
+            function loadMocapFile(url)
+            {
+                mocapDataRequest.open("GET", url, true);
+                mocapDataRequest.addEventListener("progress", function(oEvent){
+                    if (oEvent.lengthComputable) {
+                        mocapProgress.max = oEvent.total;
+                        mocapProgress.value = oEvent.loaded;
+                    }
+                }, false);
+                mocapDataRequest.send(null);
+				mocapButton.textContent = 'loading mocap...';
+                mocapIsLoading = true;
+            }
 
 			function compile() {
 			
@@ -450,7 +544,8 @@ void main()
 				cacheUniformLocation( program, 'mouse' );
 				cacheUniformLocation( program, 'resolution' );
 				cacheUniformLocation( program, 'backbuffer' );
-
+				cacheUniformLocation( program, 'sensorData' );
+                
 				// Load program into GPU
 
 				gl.useProgram( currentProgram );
@@ -682,7 +777,6 @@ void main()
 
 				requestAnimationFrame( animate );
 				render();
-
 			}
 
 			function render() {
@@ -700,6 +794,17 @@ void main()
 				gl.uniform2f( currentProgram.uniformsCache[ 'resolution' ], parameters.screenWidth, parameters.screenHeight );
 				gl.uniform1i( currentProgram.uniformsCache[ 'backbuffer' ], 0 );
 
+                if (mocapNumFrames > 0)
+                {
+                    var start = mocapCurFrame*mocapNumSensors*3;
+                    var end = start + mocapNumSensors*3;
+                    gl.uniform3fv( currentProgram.uniformsCache[ 'sensorData' ], mocapFrames.subarray(start, end));
+                    mocapProgress.value = mocapCurFrame;
+                    if (mocapIsPaused == false) {
+                        mocapCurFrame = (mocapCurFrame + 1) % mocapNumFrames;                        
+                    }
+                }
+                
 				gl.activeTexture( gl.TEXTURE0 );
 				gl.bindTexture( gl.TEXTURE_2D, backTarget.texture );
 
